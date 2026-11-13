@@ -28,6 +28,12 @@ export function listEntries(key: string, filters: Record<string, string> = {}): 
   return { items: matched, total: matched.length, page: 1, size: matched.length }
 }
 
+/** 未过滤的全量行：统计卡片、跨模块取数用。 */
+export function moduleRows(key: string): EntryRow[] {
+  moduleMeta(key)
+  return listRows(key)
+}
+
 export function runAction(key: string, id: number, action: string): ActionResult {
   const meta = moduleMeta(key)
   const target = meta.actionTargets[action]

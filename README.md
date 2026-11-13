@@ -14,7 +14,8 @@
 ├── frontend/                 Vue 3 + Vite + TypeScript 前端（唯一运行单元）
 │   ├── src/views/            每个业务模块一个页面
 │   ├── src/api/local-service.ts   本地数据服务：列表、筛选、动作流转、导出
-│   ├── src/data/             模块元数据 / 示例数据 / localStorage 持久化
+│   ├── src/api/recovery-service.ts 快照恢复域：观测闭包、恢复包、结果矩阵、pin 边界
+│   ├── src/data/             模块元数据 / 示例数据 / localStorage 持久化 / 恢复域类型
 │   ├── src/stores/           会话与筛选状态
 │   └── vite.config.ts        dev server 配置（open: false，无 /api 代理）
 ├── .gitignore
@@ -60,6 +61,26 @@ npm run build
 | 任务监控 | `monitor` | 监控配置 | 配置编号、关联任务、监控指标 |
 | 变更审计 | `audit` | 审计记录 | 记录编号、操作表名、变更类型 |
 | 编目检索 | `catalog` | 编目条目 | 条目编号、数据集名称、所属分层 |
+
+## 快照恢复域（快照管理页）
+
+快照管理仍以**快照策略**为主对象，页面下半部分提供一条完整的恢复链路：
+
+1. **观测闭包** `restore_closure(target, cycle, at)`：从目标表沿已启用的血缘向下游展开还原表集合，
+   按 `at` 与 `cycle` 推出观察窗口，逐表算出 backfill 覆盖带（完成的任务天数）、govern 保护边缘与缺口；
+   闭包内含 ADS 时附上 `contract_rev`。闭包带两个键：`observationKey`（target+cycle+at，观测点唯一键）
+   和 `fingerprint`（成员依赖 / 策略 / 契约的哈希，用于判断数据漂移）。
+2. **唯一恢复包**：闭包确认后签发 `recovery_pack`。同一 `observationKey` 只存在一个包，第二个人来签
+   会拿到同一个包并记为 `contenders`，不会出现两包。
+3. **中断续包**：中断的包续包时只补算未签收成员，已签收成员原样保留（`signed`/`signedBy`/`signedAt`
+   不变，未签收成员 `recomputeCount` 递增）。
+4. **结果视图**：矩阵视图按影响等级（高→中→低）排列，每个指标给出「原值 / 新值」两列，回退的单元格
+   标红，异常逐条列出。视图强制 pin 到 `packTime`，签发之后的 sync 写入与 archive 事件只进
+   `blockedEvents`，不会穿入包内。
+5. **回看核对**：对比当前快照策略与包内记录（策略存在、仍启用、目标一致、周期覆盖、contract_rev 一致），
+   核对结果仍以快照策略为主对象。
+
+恢复域数据存在 `localStorage` 的 `data-layer-studio:recovery` 里；清掉它即可回到无包的初始状态。
 
 ## 约定
 
